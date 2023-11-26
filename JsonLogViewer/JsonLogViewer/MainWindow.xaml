@@ -5,8 +5,55 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JsonLogViewer"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="JSON Log Viewer" 
+        Width="640" Height="480"
+        FontFamily="Meiryo" FontSize="14">
+    <DockPanel LastChildFill="True">
+        <Menu DockPanel.Dock="Top">
+            <MenuItem x:Name="_menuOpen" Click="_menuOpen_Click">
+                <TextBlock Text="開く (&amp;O)" />
+            </MenuItem>
+            <Separator />
+            <MenuItem>OK</MenuItem>
+        </Menu>
 
-    </Grid>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition MinWidth="250" MaxWidth="450" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <DataGrid
+                x:Name="_dataGrid" AutoGenerateColumns="False" 
+                ItemsSource="{Binding Items}"
+                GridLinesVisibility="Horizontal"
+                HorizontalGridLinesBrush="LightGray"
+                BorderBrush="LightGray">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Time" Binding="{Binding Time}" MinWidth="80" IsReadOnly="True" />
+
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" IsReadOnly="True">
+                        <DataGridTextColumn.CellStyle>
+                            <Style TargetType="{x:Type DataGridCell}">
+                                <Setter Property="TextBlock.TextAlignment" Value="Right" />
+                            </Style>
+                        </DataGridTextColumn.CellStyle>
+                    </DataGridTextColumn>
+
+                    <DataGridTextColumn Header="Value" Binding="{Binding Summary}" Width="*" IsReadOnly="True" />
+                </DataGrid.Columns>
+
+                <DataGrid.CellStyle>
+                    <Style TargetType="{x:Type DataGridCell}">
+                        <Setter Property="BorderThickness" Value="2" />
+                    </Style>
+                </DataGrid.CellStyle>
+            </DataGrid>
+
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Stretch" />
+
+            <TextBox x:Name="_detailsBox" Grid.Column="2" IsReadOnly="True" FontFamily="Cascadia Mono" FontSize="12"></TextBox>
+        </Grid>
+    </DockPanel>
 </Window>
