@@ -120,6 +120,16 @@ namespace JsonLogViewer
             var border = VisualTreeHelper.GetChild(dataGrid, 0) as Decorator;
             return border?.Child as ScrollViewer;
         }
+
+        private void _menuTruncate_Click(object sender, RoutedEventArgs e)
+        {
+            Debug.WriteLine("Truncate");
+
+            var result = MessageBox.Show($"Truncate the log file? (Removing the file contents, can't be undone.)\n\nFile: {_vm.LogFile}", "JSON Log Viewer", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result != MessageBoxResult.Yes) return;
+
+            _vm.Truncate();
+        }
     }
 
     internal class MainVm
@@ -192,49 +202,75 @@ namespace JsonLogViewer
 
         public async void Reload()
         {
-            var logFile = LogFile ?? throw new Exception("no logfile specified");
+            await StopWorker();
 
             {
-                var cts = _currentCts;
-                var task = _currentTask;
-                _currentCts = null;
-                _currentTask = null;
+                Items.Clear();
+            }
 
-                if (cts != null)
+            StartWorker();
+        }
+
+        public void StartWorker()
+        {
+            var logFile = LogFile;
+            if (logFile == null) return;
+
+            var cts = new CancellationTokenSource();
+            async Task F()
+            {
+                try
                 {
-                    cts.Cancel();
-                    if (task != null)
-                    {
-                        await task;
-                    }
+                    await FollowAsync(logFile, cts.Token);
                 }
+                catch (Exception ex)
+                {
+                    if (ex is TaskCanceledException) return;
+#if DEBUG
+                    throw;
+#else
+                        MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+#endif
+                }
+            }
+            _currentCts = cts;
+            _currentTask = F();
+        }
+
+        public async Task StopWorker()
+        {
+            var cts = _currentCts;
+            var task = _currentTask;
+            _currentCts = null;
+            _currentTask = null;
+
+            if (cts != null)
+            {
+                cts.Cancel();
+                if (task != null)
+                {
+                    await task;
+                }
+            }
+        }
+
+        public async void Truncate()
+        {
+            await StopWorker();
+
+            var logFile = LogFile;
+            if (logFile == null) return;
+
+            using (var file = new FileStream(logFile, FileMode.Truncate, FileAccess.Write, FileShare.None))
+            {
+                // Pass.
             }
 
             {
                 Items.Clear();
             }
 
-            {
-                var cts = new CancellationTokenSource();
-                async Task F()
-                {
-                    try
-                    {
-                        await FollowAsync(logFile, cts.Token);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (ex is TaskCanceledException) return;
-#if DEBUG
-                        throw;
-#else
-                        MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
-#endif
-                    }
-                }
-                _currentCts = cts;
-                _currentTask = F();
-            }
+            StartWorker();
         }
 
         private static LogEntry ParseLine(int i, string line)

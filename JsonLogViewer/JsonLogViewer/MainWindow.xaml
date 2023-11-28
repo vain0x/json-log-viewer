@@ -13,6 +13,9 @@
             <MenuItem Header="_File">
                 <MenuItem x:Name="_menuOpen" Header="_Open" Click="_menuOpen_Click" />
             </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem x:Name="_menuTruncate" Header="_Truncate" Click="_menuTruncate_Click" />
+            </MenuItem>
         </Menu>
 
         <Grid DockPanel.Dock="Bottom">
