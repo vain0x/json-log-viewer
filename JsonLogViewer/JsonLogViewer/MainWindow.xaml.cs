@@ -7,14 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using System.Windows.Threading;
 
 namespace JsonLogViewer
 {
@@ -40,7 +33,34 @@ namespace JsonLogViewer
 
             Loaded += MainWindow_Loaded;
 
+            _dataGrid.Loaded += _dataGrid_Loaded;
             _dataGrid.SelectionChanged += _dataGrid_SelectionChanged;
+        }
+
+        private void _dataGrid_Loaded(object sender, RoutedEventArgs e)
+        {
+            var scrollViewer = FindScrollViewer(_dataGrid);
+            if (scrollViewer != null)
+            {
+                // Detect whether it's scrolled to the bottom;
+                // https://stackoverflow.com/a/10796874
+                var atBottom = true;
+
+                scrollViewer.ScrollChanged += (_sender, _ev) =>
+                {
+                    atBottom = scrollViewer.VerticalOffset == scrollViewer.ScrollableHeight;
+                    //Debug.WriteLine("Scrolled to " + (atBottom ? "bottom" : "non-bottom"));
+                };
+
+                _vm.Items.CollectionChanged += (_sender, _ev) =>
+                {
+                    Debug.WriteLine(atBottom ? "Scrolling to bottom" : "Scroll-to-bottom skipped");
+                    if (atBottom)
+                    {
+                        scrollViewer.ScrollToBottom();
+                    }
+                };
+            }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -92,6 +112,13 @@ namespace JsonLogViewer
             if ((uint)index >= (uint)count) return;
 
             _detailsBox.Text = _vm.Items[index].Details;
+        }
+
+        // https://stackoverflow.com/a/7182603
+        private static ScrollViewer? FindScrollViewer(DataGrid dataGrid)
+        {
+            var border = VisualTreeHelper.GetChild(dataGrid, 0) as Decorator;
+            return border?.Child as ScrollViewer;
         }
     }
 
