@@ -101,14 +101,14 @@ namespace JsonLogViewer
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public string? LogFile { get; set; }
-        public ObservableCollection<LogEntry> Items { get; } = new();
+        public ObservableCollection<LogEntry> Items { get; } = [];
 
         private CancellationTokenSource? _currentCts;
         private Task? _currentTask;
 
         private async Task FollowAsync(string file, CancellationToken ct)
         {
-            Debug.WriteLine("FollowAsync file=", file);
+            Debug.WriteLine($"FollowAsync file={file}");
 
             var index = 0;
             var entries = new List<LogEntry>();
@@ -195,17 +195,15 @@ namespace JsonLogViewer
                     {
                         await FollowAsync(logFile, cts.Token);
                     }
-#if !DEBUG
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                        if (ex is TaskCanceledException) return;
+#if DEBUG
+                        throw;
 #else
-                    finally
-                    {
-                        // Pass.
-                    }
+                        MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
 #endif
+                    }
                 }
                 _currentCts = cts;
                 _currentTask = F();

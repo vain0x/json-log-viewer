@@ -10,14 +10,12 @@
         FontFamily="Meiryo" FontSize="14">
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top">
-            <MenuItem x:Name="_menuOpen" Click="_menuOpen_Click">
-                <TextBlock Text="開く (&amp;O)" />
+            <MenuItem Header="_File">
+                <MenuItem x:Name="_menuOpen" Header="_Open" Click="_menuOpen_Click" />
             </MenuItem>
-            <Separator />
-            <MenuItem>OK</MenuItem>
         </Menu>
 
-        <Grid>
+        <Grid DockPanel.Dock="Bottom">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition MinWidth="250" MaxWidth="450" />
                 <ColumnDefinition Width="4" />
@@ -27,9 +25,10 @@
             <DataGrid
                 x:Name="_dataGrid" AutoGenerateColumns="False" 
                 ItemsSource="{Binding Items}"
+                CanUserAddRows="False"
+                BorderBrush="LightGray"
                 GridLinesVisibility="Horizontal"
-                HorizontalGridLinesBrush="LightGray"
-                BorderBrush="LightGray">
+                HorizontalGridLinesBrush="LightGray">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Time" Binding="{Binding Time}" MinWidth="80" IsReadOnly="True" />
 
