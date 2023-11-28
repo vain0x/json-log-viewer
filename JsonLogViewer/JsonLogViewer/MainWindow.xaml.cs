@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using Microsoft.Win32;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -24,7 +25,7 @@ namespace JsonLogViewer
         : Window
     {
         private readonly MainVm _vm = new();
-        private readonly DispatcherTimer _timer = new();
+        //private readonly DispatcherTimer _timer = new();
 
         public MainWindow()
         {
@@ -60,15 +61,26 @@ namespace JsonLogViewer
             _vm.Reload();
         }
 
-        private void _timer_Tick(object? sender, EventArgs e)
-        {
-            Debug.WriteLine("Tick");
-            _vm.Reload();
-        }
+        //private void _timer_Tick(object? sender, EventArgs e)
+        //{
+        //    Debug.WriteLine("Tick");
+        //    _vm.Reload();
+        //}
 
         private void _menuOpen_Click(object sender, RoutedEventArgs e)
         {
             Debug.WriteLine("Open");
+
+            var fd = new OpenFileDialog()
+            {
+                CheckFileExists = true,
+                Filter = "Log file|*.log;*.txt",
+            };
+            var ok = fd.ShowDialog() ?? false;
+            if (!ok) return;
+
+            _vm.LogFile = fd.FileName;
+            _vm.Reload();
         }
 
         private void _dataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -91,65 +103,162 @@ namespace JsonLogViewer
         public string? LogFile { get; set; }
         public ObservableCollection<LogEntry> Items { get; } = new();
 
-        public void Reload()
+        private CancellationTokenSource? _currentCts;
+        private Task? _currentTask;
+
+        private async Task FollowAsync(string file, CancellationToken ct)
         {
-            var lines = File.ReadAllLines(LogFile!);
-            var output = new List<LogEntry>();
+            Debug.WriteLine("FollowAsync file=", file);
 
-            for (int i = 0; i < lines.Length; i++)
+            var index = 0;
+            var entries = new List<LogEntry>();
+            var last = 0L;
+            var delay = 500;
+
+            while (true)
             {
-                var line = lines[i].TrimEnd();
-                if (line == "") continue;
+                //Debug.WriteLine($"Opening last={last}, index={index}");
 
-                JsonDocument parsed;
-                try
+                using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var input = new StreamReader(stream, Encoding.UTF8))
                 {
-                    parsed = JsonDocument.Parse(line);
-                }
-                catch (Exception ex)
-                {
-                    output.Add(new LogEntry()
+                    if (stream.Length < last)
                     {
-                        Time = "",
-                        Id = "",
-                        Ok = false,
-                        Summary = $"Error at {i + 1}: {ex.Message}",
-                        Details = $"Error at line {i + 1}\n\nException: {ex}\n\nLine: {line}",
-                    });
-                    continue;
+                        Debug.WriteLine($"  File truncated: last={last}, length={stream.Length}");
+                        last = 0L;
+                    }
+                    else
+                    {
+                        stream.Seek(last, SeekOrigin.Begin);
+                    }
+
+                    while (true)
+                    {
+                        var line = await input.ReadLineAsync(ct);
+                        if (line == null)
+                        {
+                            //Debug.WriteLine($"  Read stopped at {stream.Position}");
+                            last = stream.Position;
+                            break;
+                        }
+
+                        line = line.TrimEnd();
+                        if (line.Length != 0)
+                        {
+                            entries.Add(ParseLine(index, line));
+                            index++;
+                        }
+                    }
+
+                    if (entries.Count != 0)
+                    {
+                        entries.ForEach(Items.Add);
+                        entries.Clear();
+                        delay = 500;
+                    }
                 }
 
-                string time;
-                if (parsed.RootElement.TryGetProperty("time", out var timeValue))
-                {
-                    time = timeValue.ToString();
-                }
-                else
-                {
-                    time = "";
-                }
+                await Task.Delay(delay, ct);
+                delay = Math.Min(delay + 500, 5000);
+            }
+        }
 
-                string id;
-                if (parsed.RootElement.TryGetProperty("id", out var idValue))
-                {
-                    id = idValue.ToString();
-                }
-                else
-                {
-                    id = "";
-                }
+        public async void Reload()
+        {
+            var logFile = LogFile ?? throw new Exception("no logfile specified");
 
-                output.Add(new LogEntry()
+            {
+                var cts = _currentCts;
+                var task = _currentTask;
+                _currentCts = null;
+                _currentTask = null;
+
+                if (cts != null)
                 {
-                    Time = time.ToString(),
-                    Id = id,
-                    Summary = line,
-                    Details = JsonSerializer.Serialize(parsed, new JsonSerializerOptions() { WriteIndented = true }),
-                    Ok = true,
-                });
+                    cts.Cancel();
+                    if (task != null)
+                    {
+                        await task;
+                    }
+                }
             }
 
-            output.ForEach(Items.Add);
+            {
+                Items.Clear();
+            }
+
+            {
+                var cts = new CancellationTokenSource();
+                async Task F()
+                {
+                    try
+                    {
+                        await FollowAsync(logFile, cts.Token);
+                    }
+#if !DEBUG
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+#else
+                    finally
+                    {
+                        // Pass.
+                    }
+#endif
+                }
+                _currentCts = cts;
+                _currentTask = F();
+            }
+        }
+
+        private static LogEntry ParseLine(int i, string line)
+        {
+            JsonDocument parsed;
+            try
+            {
+                parsed = JsonDocument.Parse(line);
+            }
+            catch (Exception ex)
+            {
+                return new LogEntry()
+                {
+                    Time = "",
+                    Id = "",
+                    Ok = false,
+                    Summary = $"Error at {i + 1}: {ex.Message}",
+                    Details = $"Error at line {i + 1}\n\nException: {ex}\n\nLine: {line}",
+                };
+            }
+
+            string time;
+            if (parsed.RootElement.TryGetProperty("time", out var timeValue))
+            {
+                time = timeValue.ToString();
+            }
+            else
+            {
+                time = "";
+            }
+
+            string id;
+            if (parsed.RootElement.TryGetProperty("id", out var idValue))
+            {
+                id = idValue.ToString();
+            }
+            else
+            {
+                id = "";
+            }
+
+            return new LogEntry()
+            {
+                Time = time.ToString(),
+                Id = id,
+                Summary = line,
+                Details = JsonSerializer.Serialize(parsed, new JsonSerializerOptions() { WriteIndented = true }),
+                Ok = true,
+            };
         }
     }
 
