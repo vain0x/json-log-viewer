@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace JsonLogViewer
@@ -18,7 +19,6 @@ namespace JsonLogViewer
         : Window
     {
         private readonly MainVm _vm = new();
-        //private readonly DispatcherTimer _timer = new();
 
         public MainWindow()
         {
@@ -26,15 +26,12 @@ namespace JsonLogViewer
 
             DataContext = _vm;
 
-            //_timer.Interval = TimeSpan.FromSeconds(10.0);
-            //_timer.Start();
-
-            //_timer.Tick += _timer_Tick;
-
             Loaded += MainWindow_Loaded;
 
             _dataGrid.Loaded += _dataGrid_Loaded;
             _dataGrid.SelectionChanged += _dataGrid_SelectionChanged;
+
+            _statusBorder.MouseLeftButtonUp += _statusBorder_MouseLeftButtonUp;
         }
 
         private void _dataGrid_Loaded(object sender, RoutedEventArgs e)
@@ -72,20 +69,16 @@ namespace JsonLogViewer
             {
                 var d = workdir.Replace("\\", "/");
                 var i = d.LastIndexOf("JsonLogViewer/JsonLogViewer");
-                Debug.Assert(i >= 0);
-                d = d[..i];
-                _vm.LogFile = $"{d}/default.log";
-                Debug.WriteLine($"log = {_vm.LogFile}");
+                if (i >= 0)
+                {
+                    d = d[..i];
+                    _vm.LogFile = $"{d}/default.log";
+                    Debug.WriteLine($"log = {_vm.LogFile}");
+                }
             }
 
             _vm.Reload();
         }
-
-        //private void _timer_Tick(object? sender, EventArgs e)
-        //{
-        //    Debug.WriteLine("Tick");
-        //    _vm.Reload();
-        //}
 
         private void _menuOpen_Click(object sender, RoutedEventArgs e)
         {
@@ -130,15 +123,24 @@ namespace JsonLogViewer
 
             _vm.Truncate();
         }
+
+        private void _statusBorder_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _detailsBox.Text = _vm.StatusFull;
+        }
     }
 
     internal class MainVm
         : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
+        private void RaisePropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public string? LogFile { get; set; }
         public ObservableCollection<LogEntry> Items { get; } = [];
+
+        public string Status { get; set; } = "";
+        public string StatusFull { get; set; } = "";
 
         private CancellationTokenSource? _currentCts;
         private Task? _currentTask;
@@ -146,6 +148,7 @@ namespace JsonLogViewer
         private async Task FollowAsync(string file, CancellationToken ct)
         {
             Debug.WriteLine($"FollowAsync file={file}");
+            ShowStatus($"File: '{Path.GetFileName(file)}'", $"File: {file}");
 
             var index = 0;
             var entries = new List<LogEntry>();
@@ -223,13 +226,17 @@ namespace JsonLogViewer
                 {
                     await FollowAsync(logFile, cts.Token);
                 }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
                 catch (Exception ex)
                 {
-                    if (ex is TaskCanceledException) return;
+                    ShowStatus("Error!", $"File: {logFile}\nException: {ex}\n");
 #if DEBUG
-                    throw;
+                    //throw;
 #else
-                        MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
 #endif
                 }
             }
@@ -320,6 +327,14 @@ namespace JsonLogViewer
                 Details = JsonSerializer.Serialize(parsed, new JsonSerializerOptions() { WriteIndented = true }),
                 Ok = true,
             };
+        }
+
+        private void ShowStatus(string status, string full)
+        {
+            Status = status;
+            StatusFull = full;
+            RaisePropertyChanged(nameof(Status));
+            RaisePropertyChanged(nameof(StatusFull));
         }
     }
 

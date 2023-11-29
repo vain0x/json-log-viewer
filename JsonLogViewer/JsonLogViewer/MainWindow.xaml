@@ -9,14 +9,28 @@
         Width="640" Height="480"
         FontFamily="Meiryo" FontSize="14">
     <DockPanel LastChildFill="True">
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem x:Name="_menuOpen" Header="_Open" Click="_menuOpen_Click" />
-            </MenuItem>
-            <MenuItem Header="_Edit">
-                <MenuItem x:Name="_menuTruncate" Header="_Truncate" Click="_menuTruncate_Click" />
-            </MenuItem>
-        </Menu>
+        <Grid DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Menu>
+                <MenuItem Header="_File">
+                    <MenuItem x:Name="_menuOpen" Header="_Open" Click="_menuOpen_Click" />
+                </MenuItem>
+                <MenuItem Header="_Edit">
+                    <MenuItem x:Name="_menuTruncate" Header="_Truncate" Click="_menuTruncate_Click" />
+                </MenuItem>
+            </Menu>
+
+            <Border
+                x:Name="_statusBorder"
+                Grid.Column="1" Background="#f3f3f3"
+                ToolTip="{Binding StatusFull}">
+                <TextBlock Text="{Binding Status}" Margin="0,0,8,0" MaxWidth="250" TextTrimming="WordEllipsis" />
+            </Border>
+        </Grid>
 
         <Grid DockPanel.Dock="Bottom">
             <Grid.ColumnDefinitions>
@@ -55,7 +69,10 @@
 
             <GridSplitter Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Stretch" />
 
-            <TextBox x:Name="_detailsBox" Grid.Column="2" IsReadOnly="True" FontFamily="Cascadia Mono" FontSize="12"></TextBox>
+            <TextBox
+                x:Name="_detailsBox" Grid.Column="2" IsReadOnly="True"
+                FontFamily="Cascadia Mono" FontSize="12"
+                HorizontalScrollBarVisibility="Auto" />
         </Grid>
     </DockPanel>
 </Window>
