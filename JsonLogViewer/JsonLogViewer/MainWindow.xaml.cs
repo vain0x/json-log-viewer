@@ -230,14 +230,19 @@ namespace JsonLogViewer
                 {
                     return;
                 }
+                catch (IOException ex)
+                {
+                    ShowStatus($"ERROR: {ex.Message}", $"File: {logFile}\n\nException: {ex}\n");
+                }
+#if !DEBUG
                 catch (Exception ex)
                 {
-                    ShowStatus("Error!", $"File: {logFile}\nException: {ex}\n");
-#if DEBUG
-                    //throw;
-#else
                     MessageBox.Show($"ERROR: {ex}", "JSON Log Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
 #endif
+                finally
+                {
+                    Debug.WriteLine("Worker stopped");
                 }
             }
             _currentCts = cts;
