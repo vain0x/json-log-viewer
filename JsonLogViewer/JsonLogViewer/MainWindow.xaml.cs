@@ -305,7 +305,7 @@ namespace JsonLogViewer
             }
 
             string time;
-            if (parsed.RootElement.TryGetProperty("time", out var timeValue))
+            if (parsed.RootElement.TryGetProperty("timestamp", out var timeValue))
             {
                 time = timeValue.ToString();
             }
