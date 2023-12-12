@@ -1,17 +1,37 @@
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  font-family: sans-serif;
+  line-height: 1.8;
+  color: #1b1b1b;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100vh;
+}
+
+body,
+#react-root {
+  display: grid;
+}
+
+.entry-list__item:focus {
+  height: 24px;
+  color: hsl(219, 66%, 30%);
+}
+
+.entry-list__item:hover {
+  background-color: #EBEBEB;
 }
 
 .container {
@@ -74,6 +94,7 @@ button {
 button:hover {
   border-color: #396cd8;
 }
+
 button:active {
   border-color: #396cd8;
   background-color: #e8e8e8;
@@ -103,6 +124,7 @@ button {
     color: #ffffff;
     background-color: #0f0f0f98;
   }
+
   button:active {
     background-color: #0f0f0f69;
   }
