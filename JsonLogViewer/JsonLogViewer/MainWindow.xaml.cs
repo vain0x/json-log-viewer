@@ -4,7 +4,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Unicode;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -329,10 +332,18 @@ namespace JsonLogViewer
                 Time = time.ToString(),
                 Id = id,
                 Summary = line,
-                Details = JsonSerializer.Serialize(parsed, new JsonSerializerOptions() { WriteIndented = true }),
+                Details = JsonSerializer.Serialize(parsed, SerializerOptions),
                 Ok = true,
             };
         }
+
+        private static JsonSerializerOptions SerializerOptions { get; } = new()
+        {
+            // prevent unnecessary escaping
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+
+            WriteIndented = true,
+        };
 
         private void ShowStatus(string status, string full)
         {
