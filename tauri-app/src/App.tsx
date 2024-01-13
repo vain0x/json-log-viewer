@@ -1,7 +1,11 @@
-import React, { useMemo, useRef, useState } from "react"
+import { emit, listen } from "@tauri-apps/api/event"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { Entry, parseEntries } from "./entries"
+import { invoke } from "@tauri-apps/api"
+import { appWindow } from "@tauri-apps/api/window"
 
 export default function App() {
+  const [filename, setFilename] = useState("")
   const [inputText, setInputText] = useState("")
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
 
@@ -21,18 +25,47 @@ export default function App() {
   //   setGreetMsg(await invoke("greet", { name }))
   // }
 
-  const handleFileChange = (ev: React.ChangeEvent<HTMLInputElement & { type: "file" }>) => {
-    const input = ev.currentTarget
-    const files = input.files
-
-    if (input != null && files != null) {
-      input.files = null
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        console.log("file =", file)
+  useEffect(() => {
+    const ac = new AbortController()
+    const { signal } = ac
+    const dispose = (unlisten: () => void) => {
+      if (signal.aborted) {
+        unlisten()
+      } else {
+        signal.addEventListener("abort", unlisten)
       }
     }
-  }
+
+    // appWindow.listen<{ value: number }>("app://listen", ev => {
+    //   console.log("listen", ev.payload)
+    // }).then(unlisten => {
+    //   if (signal.aborted) {
+    //     unlisten()
+    //   } else {
+    //     signal.addEventListener("abort", unlisten)
+    //   }
+    // })
+
+    listen<string>("set-filename", ev => {
+      console.log("set-filename", ev.payload)
+      setFilename(ev.payload)
+    }).then(dispose)
+
+    return () => ac.abort()
+  }, [])
+
+  // const handleFileChange = (ev: React.ChangeEvent<HTMLInputElement & { type: "file" }>) => {
+  //   const input = ev.currentTarget
+  //   const files = input.files
+
+  //   if (input != null && files != null) {
+  //     input.files = null
+  //     for (let i = 0; i < files.length; i++) {
+  //       const file = files[i]
+  //       console.log("file =", file)
+  //     }
+  //   }
+  // }
 
   const timeoutRef = useRef<any>()
   const handleInputTextChange = (ev: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -100,10 +133,18 @@ export default function App() {
         <label style={{
           display: "flex", alignItems: "center", gap: "4px",
         }}>
-          <div>FILE:</div>
-          <input type="file" accept=".log,.txt"
+          <div>{"FILE: " + (filename || "...")}</div>
+          {/* <input type="file" accept=".log,.txt"
             placeholder="Select log file..."
-            onChange={handleFileChange} />
+            onChange={handleFileChange} /> */}
+          <button type="button"
+            className="py-2 px-1 w-[200px] bg-gray-100"
+            onClick={() => {
+              // appWindow.emit("event-name", { message: "event message" })
+              invoke("open_file")
+            }}>
+            Open file...
+          </button>
         </label>
       </form>
 
