@@ -1,8 +1,7 @@
-import { emit, listen } from "@tauri-apps/api/event"
+import { invoke } from "@tauri-apps/api"
+import { listen } from "@tauri-apps/api/event"
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { Entry, parseEntries } from "./entries"
-import { invoke } from "@tauri-apps/api"
-import { appWindow } from "@tauri-apps/api/window"
 
 export default function App() {
   const [filename, setFilename] = useState("")
@@ -20,11 +19,6 @@ export default function App() {
     return selectedEntry.contents
   }, [selectedEntry])
 
-  // async function greet() {
-  //   // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-  //   setGreetMsg(await invoke("greet", { name }))
-  // }
-
   useEffect(() => {
     const ac = new AbortController()
     const { signal } = ac
@@ -36,19 +30,11 @@ export default function App() {
       }
     }
 
-    // appWindow.listen<{ value: number }>("app://listen", ev => {
-    //   console.log("listen", ev.payload)
-    // }).then(unlisten => {
-    //   if (signal.aborted) {
-    //     unlisten()
-    //   } else {
-    //     signal.addEventListener("abort", unlisten)
-    //   }
-    // })
-
-    listen<string>("set-filename", ev => {
-      console.log("set-filename", ev.payload)
-      setFilename(ev.payload)
+    listen<{ filename: string, contents: string }>("file_opened", ev => {
+      console.log("file_opened", ev.payload)
+      const { filename, contents } = ev.payload
+      setFilename(filename)
+      setEntries(parseEntries(contents))
     }).then(dispose)
 
     return () => ac.abort()
@@ -111,6 +97,8 @@ export default function App() {
         display: "grid",
         gridTemplateRows: "auto 1fr",
         gridTemplateColumns: "200px 1fr",
+        width: "100vw",
+        height: "100vh",
       }}>
       <form autoComplete="off"
         style={{
@@ -130,22 +118,19 @@ export default function App() {
           value={inputText}
           onChange={handleInputTextChange} />
 
-        <label style={{
-          display: "flex", alignItems: "center", gap: "4px",
-        }}>
-          <div>{"FILE: " + (filename || "...")}</div>
-          {/* <input type="file" accept=".log,.txt"
+        <div className="flex-col items-start">
+          {"FILE: " + (filename || "")}
+
+          <label className="flex-row items-center" style={{ gap: "4px" }}>
+            {/* <input type="file" accept=".log,.txt"
             placeholder="Select log file..."
             onChange={handleFileChange} /> */}
-          <button type="button"
-            className="py-2 px-1 w-[200px] bg-gray-100"
-            onClick={() => {
-              // appWindow.emit("event-name", { message: "event message" })
-              invoke("open_file")
-            }}>
-            Open file...
-          </button>
-        </label>
+            <button type="button"
+              onClick={() => invoke("open_file")}>
+              Open file...
+            </button>
+          </label>
+        </div>
       </form>
 
       <div className="entry-list" style={{
@@ -154,6 +139,7 @@ export default function App() {
         overflowY: "scroll",
       }} onClick={handleEntryList}>
         <div className="entry-list__body" style={{
+          minWidth: "calc(200px - 16px)",
           width: "max-content",
           height: "max-content",
           display: "grid",

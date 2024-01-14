@@ -3,6 +3,7 @@
 
 use std::{
     cell::RefCell,
+    fs,
     sync::{
         mpsc::{self, Sender, TryRecvError},
         Arc, Mutex,
@@ -17,7 +18,7 @@ use tauri::Manager;
 // }
 
 struct State {
-    rx: Sender<String>,
+    rx: Sender<Msg>,
 }
 
 #[tauri::command]
@@ -35,10 +36,15 @@ fn open_file(app: tauri::AppHandle, state: tauri::State<'_, Arc<Mutex<State>>>) 
             };
 
             let filename = file_path.to_string_lossy().into_owned();
+            let contents = match fs::read_to_string(&file_path) {
+                Ok(it) => it,
+                Err(err) => format!("ERROR: Cannot open a file. path={file_path:?}, err={err:?}"),
+            };
+            let msg = Msg::FileOpened(FileOpenedPayload { filename, contents });
 
             {
                 let state_lock = state.lock().unwrap();
-                state_lock.rx.send(filename).unwrap();
+                state_lock.rx.send(msg).unwrap();
                 app.trigger_global("poll", None);
             }
         });
@@ -49,10 +55,15 @@ fn close_file() {
     eprintln!("close_file");
 }
 
-// #[derive(Clone, serde::Serialize)]
-// struct TickPayload {
-//     value: i32,
-// }
+#[derive(Clone, serde::Serialize)]
+struct FileOpenedPayload {
+    filename: String,
+    contents: String,
+}
+
+enum Msg {
+    FileOpened(FileOpenedPayload),
+}
 
 fn main() {
     let (rx, tx) = mpsc::channel();
@@ -94,8 +105,12 @@ fn main() {
                     };
                     match tx.try_recv() {
                         Ok(msg) => {
-                            eprintln!("app: msg='{msg}'");
-                            main_window.emit("set-filename", msg).unwrap();
+                            eprintln!("app: msg");
+                            match msg {
+                                Msg::FileOpened(payload) => {
+                                    main_window.emit("file_opened", payload).unwrap();
+                                }
+                            }
                         }
                         Err(TryRecvError::Disconnected) => {
                             tx_opt.take();

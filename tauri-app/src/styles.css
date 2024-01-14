@@ -25,6 +25,19 @@ body,
   display: grid;
 }
 
+
+
+/* utilities */
+
+.flex-row, .flex-col { display: flex }
+.flex-col { flex-direction: column }
+.items-center { align-items: center }
+.items-start { align-items: start }
+
+
+
+/* application */
+
 .entry-list__item:focus {
   height: 24px;
   color: hsl(219, 66%, 30%);
